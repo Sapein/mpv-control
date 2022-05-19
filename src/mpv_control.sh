@@ -2,6 +2,39 @@
 
 unset IFS
 
+ccmd_r() {
+    read cmds
+    cmd='{ "command": ['
+
+    for arg in $cmds
+    do
+        cmd="${cmd} \"${arg}\","
+    done
+
+    cmd="${cmd}"' ] }'
+    printf "%s" "${cmd}"
+}
+
+construct_cmd() (
+    cmd='{ "command": ['
+
+    for arg in $@
+    do
+        cmd="${cmd} \"${arg}\","
+    done
+
+    cmd="${cmd}"' ] }'
+    printf "%s" "${cmd}"
+)
+
+send_cmd() (
+    read cmd
+    echo $cmd
+
+    echo $cmd | socat - "${MPV_IPC_SERVER}"
+)
+
+
 # Parse Opts
 MPV_IPC_SERVER="${MPV_IPC_SERVER:-${XDG_RUNTIME_DIR}/mpvsocket}"
 CMDLINE_ENABLED=false
@@ -11,6 +44,12 @@ if [ -z $1 ]
 then
     $0 --help
     return $?
+fi
+
+if ! pidof mpv > /dev/null
+then
+    printf "MPV is not running!\n" 1>&2
+    exit 4
 fi
 
 for opt in ${@}
@@ -53,37 +92,11 @@ do
     esac
 done
 
-ccmd_r() {
-    read cmds
-    cmd='{ "command": ['
-
-    for arg in $cmds
-    do
-        cmd="${cmd} \"${arg}\","
-    done
-
-    cmd="${cmd}"' ] }'
-    printf "%s" "${cmd}"
-}
-
-construct_cmd() (
-    cmd='{ "command": ['
-
-    for arg in $@
-    do
-        cmd="${cmd} \"${arg}\","
-    done
-
-    cmd="${cmd}"' ] }'
-    printf "%s" "${cmd}"
-)
-
-send_cmd() (
-    read cmd
-    echo $cmd
-
-    echo $cmd | socat - "${MPV_IPC_SERVER}"
-)
+if [ ! -e "${MPV_IPC_SERVER}" ]
+then
+    printf "IPC Socket not found at %s!\n" "${MPV_IPC_SERVER}" 1>&2
+    exit 5
+fi
 
 for cmd in ${COMMANDS}
 do
